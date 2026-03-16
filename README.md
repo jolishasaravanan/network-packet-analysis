@@ -1,10 +1,43 @@
+# Network Packet Analyzer
+
+A Python-based network packet analyzer that captures and displays network traffic information.
+
 ## Features
-- Capture network packets
-- Display source IP and destination IP
-- Detect protocol (TCP, UDP, ICMP)
-- Save packet data to a log file
+- Capture live network packets
+- Display Source IP and Destination IP
+- Detect protocols (TCP, UDP, ICMP)
+- GUI interface using Tkinter
+- Packet statistics (protocol counters)
+- Packet table view
 
-## Output Example
-Packets are saved in packets.txt with details like:
+## Technologies Used
+- Python
+- Scapy
+- Tkinter
 
-10.86.43.132 -> 40.79.167.8 | TCP | 66 bytes
+## How to Run
+
+1. Install required library:
+```
+pip install scapy
+```
+
+2. Run the program:
+```
+python packet_analyzer_gui.py
+```
+
+3. Click **Start Capture** to monitor network traffic.
+
+## Project Structure
+
+```
+network-packet-analysis
+│
+├── packet_analyzer.py
+├── packet_analyzer_gui.py
+└── README.md
+```
+
+## Author
+Jolisha B
