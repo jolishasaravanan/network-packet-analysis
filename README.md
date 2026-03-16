@@ -39,5 +39,4 @@ network-packet-analysis
 └── README.md
 ```
 
-## Author
-Jolisha B
+
