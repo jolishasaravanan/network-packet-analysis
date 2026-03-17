@@ -1,207 +1,167 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[codz]
-*$py.class
+import tkinter as tk
+from tkinter import ttk
+from scapy.all import sniff
+import threading
+import time
 
-# C extensions
-*.so
+# Counters
+tcp_count = 0
+udp_count = 0
+icmp_count = 0
+total_packets = 0
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# Packet rate
+packet_count_sec = 0
+start_time = time.time()
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# Top talker
+ip_count = {}
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+capturing = False
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
 
-# Translations
-*.mo
-*.pot
+def analyze_packet(packet):
+    global tcp_count, udp_count, icmp_count, total_packets
+    global packet_count_sec, start_time, ip_count
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+    if packet.haslayer("IP"):
+        ip = packet["IP"]
 
-# Flask stuff:
-instance/
-.webassets-cache
+        protocol = "Other"
 
-# Scrapy stuff:
-.scrapy
+        if ip.proto == 6:
+            protocol = "TCP"
+            tcp_count += 1
+        elif ip.proto == 17:
+            protocol = "UDP"
+            udp_count += 1
+        elif ip.proto == 1:
+            protocol = "ICMP"
+            icmp_count += 1
 
-# Sphinx documentation
-docs/_build/
+        total_packets += 1
+        packet_count_sec += 1
 
-# PyBuilder
-.pybuilder/
-target/
+        # Insert into table
+        table.insert("", "end",
+                     values=(ip.src, ip.dst, protocol, len(packet)))
 
-# Jupyter Notebook
-.ipynb_checkpoints
+        # Update counters
+        tcp_label.config(text=f"TCP: {tcp_count}")
+        udp_label.config(text=f"UDP: {udp_count}")
+        icmp_label.config(text=f"ICMP: {icmp_count}")
+        total_label.config(text=f"Total: {total_packets}")
 
-# IPython
-profile_default/
-ipython_config.py
+        # Packets/sec
+        current_time = time.time()
+        if current_time - start_time >= 1:
+            rate_label.config(text=f"Packets/sec: {packet_count_sec}")
+            packet_count_sec = 0
+            start_time = current_time
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+        # Top Talker
+        src = ip.src
+        if src in ip_count:
+            ip_count[src] += 1
+        else:
+            ip_count[src] = 1
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+        top_ip = max(ip_count, key=ip_count.get)
+        top_label.config(text=f"Top IP: {top_ip}")
 
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-#poetry.toml
+def capture_packets():
+    global capturing
+    while capturing:
+        sniff(count=1, prn=analyze_packet)
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#   pdm recommends including project-wide configuration in pdm.toml, but excluding .pdm-python.
-#   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
-#pdm.lock
-#pdm.toml
-.pdm-python
-.pdm-build/
 
-# pixi
-#   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
-#pixi.lock
-#   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
-#   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
+def start_capture():
+    global capturing
+    if not capturing:
+        capturing = True
+        status_label.config(text="Status: Capturing", fg="green")
+        threading.Thread(target=capture_packets, daemon=True).start()
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
+def stop_capture():
+    global capturing
+    capturing = False
+    status_label.config(text="Status: Stopped", fg="red")
 
-# SageMath parsed files
-*.sage.py
 
-# Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+def clear_table():
+    for row in table.get_children():
+        table.delete(row)
 
-# Spyder project settings
-.spyderproject
-.spyproject
 
-# Rope project settings
-.ropeproject
+# GUI
+root = tk.Tk()
+root.title("Network Packet Analyzer")
+root.geometry("950x550")
 
-# mkdocs documentation
-/site
+title = tk.Label(root, text="Network Packet Analyzer",
+                 font=("Arial", 18, "bold"))
+title.pack(pady=10)
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Counters
+counter_frame = tk.Frame(root)
+counter_frame.pack()
 
-# Pyre type checker
-.pyre/
+tcp_label = tk.Label(counter_frame, text="TCP: 0", font=("Arial", 12))
+tcp_label.grid(row=0, column=0, padx=10)
 
-# pytype static type analyzer
-.pytype/
+udp_label = tk.Label(counter_frame, text="UDP: 0", font=("Arial", 12))
+udp_label.grid(row=0, column=1, padx=10)
 
-# Cython debug symbols
-cython_debug/
+icmp_label = tk.Label(counter_frame, text="ICMP: 0", font=("Arial", 12))
+icmp_label.grid(row=0, column=2, padx=10)
 
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+total_label = tk.Label(counter_frame, text="Total: 0", font=("Arial", 12))
+total_label.grid(row=0, column=3, padx=10)
 
-# Abstra
-# Abstra is an AI-powered process automation framework.
-# Ignore directories containing user credentials, local state, and settings.
-# Learn more at https://abstra.io/docs
-.abstra/
+rate_label = tk.Label(counter_frame, text="Packets/sec: 0", font=("Arial", 12))
+rate_label.grid(row=0, column=4, padx=10)
 
-# Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
-#  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+top_label = tk.Label(counter_frame, text="Top IP: None", font=("Arial", 12))
+top_label.grid(row=0, column=5, padx=10)
 
-# Ruff stuff:
-.ruff_cache/
+# Buttons
+button_frame = tk.Frame(root)
+button_frame.pack(pady=10)
 
-# PyPI configuration file
-.pypirc
+start_btn = tk.Button(button_frame, text="Start Capture",
+                      command=start_capture, bg="green", fg="white", width=15)
+start_btn.grid(row=0, column=0, padx=10)
 
-# Cursor
-#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
+stop_btn = tk.Button(button_frame, text="Stop Capture",
+                     command=stop_capture, bg="red", fg="white", width=15)
+stop_btn.grid(row=0, column=1, padx=10)
 
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
+clear_btn = tk.Button(button_frame, text="Clear Screen",
+                      command=clear_table, bg="blue", fg="white", width=15)
+clear_btn.grid(row=0, column=2, padx=10)
+
+status_label = tk.Label(root, text="Status: Idle")
+status_label.pack()
+
+# Table
+columns = ("Source IP", "Destination IP", "Protocol", "Length")
+
+table = ttk.Treeview(root, columns=columns, show="headings", height=18)
+
+for col in columns:
+    table.heading(col, text=col)
+    table.column(col, width=200)
+
+table.pack(pady=10)
+
+root.mainloop()
+
+
+
+
+
+
+
+
